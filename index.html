@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Typing Speed Test</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Typing Speed Test</h1>
+
+    <div class="top-row">
+      <div class="stats" aria-live="polite">
+        <div>Time: <span id="time">60.00</span>s</div>
+        <div>Mistakes: <span id="mistake">0</span></div>
+        <div>WPM: <span id="wordCount">0</span></div>
+        <!-- original code referenced charCount so we keep it present (hidden) -->
+        <div style="display:none">Char: <span id="charCount">0</span></div>
+        <div>Accuracy: <span id="accuracy">100</span>%</div>
+      </div>
+
+      <div class="controls" style="gap:10px;">
+        <label class="small">Difficulty:
+          <select id="difficulty">
+            <option value="easy">Easy (short)</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard (long)</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <!-- paragraph display (target + typed overwrite) -->
+    <div id="paragraphDisplay" class="paragraph-display" aria-live="polite"></div>
+
+    <!-- input box where user types -->
+    <textarea id="inputBox" placeholder="Type here..." aria-label="Type here"></textarea>
+
+    <div class="buttons">
+      <button id="startBtn">Start</button>
+      <button id="resetBtn" class="secondary">Reset</button>
+      <button id="clearHistory" class="secondary">Clear History</button>
+    </div>
+
+    <div id="results" class="results" role="status" aria-live="polite"></div>
+
+    <div class="history">
+      <div class="history-list">
+        <div class="meta">Past Tests (last 10)</div>
+        <ul id="historyList"></ul>
+      </div>
+
+      <div style="min-width:220px;">
+        <div class="meta">How it works</div>
+        <div class="small" style="margin-top:8px;">
+          Start a test, type in the box. Your typed letters overwrite the displayed paragraph so you can directly see correct (green) and wrong (red) chars. Mistakes are counted per mis-spelled word (spaces ignored). Results store automatically.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
