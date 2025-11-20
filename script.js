@@ -5,7 +5,6 @@
    ============================ */
 
 const orig = (function(){
-  // Original selectors (kept)
   const inputBoxOrig = document.getElementById("inputBox");
   const timeDisplayOrig = document.getElementById("time");
   const wordCountDisplayOrig = document.getElementById("wordCount");
@@ -78,16 +77,16 @@ const orig = (function(){
 
 /* ============================
    ENHANCED TYPING TEST IMPLEMENTATION
-   - typed letters overwrite the display (span.textContent)
    - per-letter highlight (correct/incorrect)
    - mistake counting per mis-spelled word (spaces ignored)
    - difficulty modes
    - reset button
-   - history in localStorage (last 10)
+   - localStorage history
+   - auto-stop at paragraph completion
+   - final accuracy in results
    ============================ */
 
 (function(){
-  // DOM elements (enhanced)
   const paragraphDisplay = document.getElementById('paragraphDisplay');
   const inputBox = document.getElementById('inputBox');
   const timeDisplay = document.getElementById('time');
@@ -101,7 +100,6 @@ const orig = (function(){
   const historyList = document.getElementById('historyList');
   const clearHistoryBtn = document.getElementById('clearHistory');
 
-  // paragraphs data
   const paragraphs = {
     easy: [
       "The sun rose gently over the quiet town, warming the empty streets.",
@@ -141,24 +139,19 @@ const orig = (function(){
     ]
   };
 
-  // state
   let targetText = '';
   let spans = [];
   let timer = null;
   let timeLeft = 60.0;
   let running = false;
   let startTimestamp = null;
-
-  // localStorage key
   const STORAGE_KEY = 'typing_test_scores_v1';
 
-  // pick random by difficulty
   function pickRandom(level) {
     const arr = paragraphs[level] || paragraphs.easy;
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  // render target as spans; store original char in data-target
   function renderTarget(text) {
     paragraphDisplay.innerHTML = '';
     spans = [];
@@ -172,7 +165,6 @@ const orig = (function(){
     }
   }
 
-  // start a new test
   function startNewTest() {
     const level = difficultySelect.value || 'easy';
     targetText = pickRandom(level);
@@ -194,7 +186,6 @@ const orig = (function(){
     resultsDiv.textContent = '';
   }
 
-  // start timer (on first keystroke)
   function startTimer() {
     if (running) return;
     running = true;
@@ -207,12 +198,12 @@ const orig = (function(){
     }, 50);
   }
 
-  // input handler: overwrite spans, highlight and compute stats
   function onInput() {
     startTimer();
 
     const typed = inputBox.value;
-    // overwrite display
+
+    // overwrite display and highlight
     for (let i = 0; i < spans.length; i++) {
       const sp = spans[i];
       const typedChar = typed[i];
@@ -223,44 +214,35 @@ const orig = (function(){
         sp.className = '';
       } else {
         sp.textContent = typedChar;
-        if (typedChar === targetChar) {
-          sp.className = 'correct';
-        } else {
-          sp.className = 'incorrect';
-        }
+        sp.className = typedChar === targetChar ? 'correct' : 'incorrect';
       }
     }
 
-    // account for typed beyond target: those are not shown in spans but will affect accuracy/mistakes
-    // Mistakes per mis-spelled word (ignore spaces)
+    // auto-stop when complete
+    if (typed.length >= targetText.length) finishTest();
+
+    // compute mistakes per mis-spelled word
     const typedWords = typed.trim().length ? typed.trim().split(/\s+/) : [];
     const targetWords = targetText.trim().length ? targetText.trim().split(/\s+/) : [];
-
     let wordMistakes = 0;
     for (let i = 0; i < typedWords.length; i++) {
       if (!targetWords[i]) {
         if (typedWords[i].length > 0) wordMistakes++;
-      } else {
-        if (typedWords[i] !== targetWords[i]) wordMistakes++;
-      }
+      } else if (typedWords[i] !== targetWords[i]) wordMistakes++;
     }
     mistakeDisplay.textContent = String(wordMistakes);
 
-    // words typed for display
     wordCountDisplay.textContent = typedWords.length;
 
-    // accuracy: correctChars / typedChars
     const typedLen = typed.length;
     let correctChars = 0;
     for (let i = 0; i < typedLen && i < spans.length; i++) {
       if (spans[i].classList.contains('correct')) correctChars++;
     }
-    // typed beyond spans are incorrect
     const accuracy = typedLen ? Math.round((correctChars / typedLen) * 100) : 100;
     accuracyDisplay.textContent = String(accuracy);
   }
 
-  // finish: stop, compute final WPM, store score
   function finishTest() {
     clearInterval(timer);
     running = false;
@@ -268,51 +250,40 @@ const orig = (function(){
 
     const elapsed = startTimestamp ? ((Date.now() - startTimestamp) / 1000) : 0;
     const timeUsed = elapsed > 0 ? Math.min(elapsed, 60) : 0.0001;
-    const typedWords = inputBox.value.trim().length ? inputBox.value.trim().split(/\s+/).length : 0;
+    const typed = inputBox.value;
+    const typedWords = typed.trim().length ? typed.trim().split(/\s+/).length : 0;
     const wpm = Math.round(typedWords / (timeUsed / 60));
-    const accuracy = Number(accuracyDisplay.textContent) || 0;
+
+    const typedLen = typed.length;
+    let correctChars = 0;
+    for (let i = 0; i < typedLen && i < spans.length; i++) {
+      if (spans[i].classList.contains('correct')) correctChars++;
+    }
+    const accuracy = typedLen ? Math.round((correctChars / typedLen) * 100) : 100;
     const level = difficultySelect.value || 'easy';
 
     resultsDiv.innerHTML = `Test ended — WPM: <strong>${wpm}</strong>, Accuracy: <strong>${accuracy}%</strong>, Time used: <strong>${timeUsed.toFixed(2)}s</strong>, Difficulty: <strong>${level}</strong>`;
 
-    // store score in localStorage
-    const score = {
-      date: new Date().toISOString(),
-      wpm,
-      accuracy,
-      time: Number(timeUsed.toFixed(2)),
-      difficulty: level
-    };
+    const score = { date: new Date().toISOString(), wpm, accuracy, time: Number(timeUsed.toFixed(2)), difficulty: level };
     saveScore(score);
     renderHistory();
   }
 
-  // reset test
   function resetTest() {
     clearInterval(timer);
     startNewTest();
   }
 
-  // localStorage helpers
   function readHistory() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      console.error('readHistory error', e);
-      return [];
-    }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e){ return []; }
   }
 
   function saveScore(scoreObj) {
     try {
       const list = readHistory();
       list.unshift(scoreObj);
-      const trimmed = list.slice(0, 10);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-    } catch (e) {
-      console.error('saveScore error', e);
-    }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0,10)));
+    } catch(e){}
   }
 
   function clearHistory() {
@@ -338,32 +309,13 @@ const orig = (function(){
   }
 
   // event wiring
-  startBtn.addEventListener('click', () => {
-    startNewTest();
-  });
-
+  startBtn.addEventListener('click', startNewTest);
   inputBox.addEventListener('input', onInput);
-
-  inputBox.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const typed = inputBox.value.trim();
-      if (typed === targetText.trim()) {
-        finishTest();
-      }
-    }
-  });
-
   resetBtn.addEventListener('click', resetTest);
   clearHistoryBtn.addEventListener('click', clearHistory);
-
-  difficultySelect.addEventListener('change', () => {
-    startNewTest();
-  });
+  difficultySelect.addEventListener('change', startNewTest);
 
   // init
   startNewTest();
   renderHistory();
-
 })();
-
-
