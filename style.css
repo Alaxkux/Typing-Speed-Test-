@@ -4,6 +4,9 @@ body {
   background: #7880e1;
   margin: 0;
   padding: 0;
+  background-image: url(blue-light-abstract-flow-4k-zt.jpg);
+  background-size: cover;
+  background-position: center;
 }
 
 .container {
